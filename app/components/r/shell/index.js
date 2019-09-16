@@ -525,14 +525,16 @@ class RShell extends React.Component {
 						null
 					}
 					{
+						this.props.copyCode ? 
 						<CopyToClipboard
 							onCopy={this.onCopyCode}
 							disabled={isUndefinedOrNull(this.editor)}
 							text={isUndefinedOrNull(this.editor) ?
 								'' :
 								this.getCopyCode()}>
-							<Button>Copy to Clipboard</Button>
-						</CopyToClipboard>
+							<Button size="sm">Copy to Clipboard</Button>
+						</CopyToClipboard> :
+						null
 					}
 					{ ( this.props.resettable ) ?
 						showResetButton(
@@ -564,6 +566,7 @@ class RShell extends React.Component {
 
 RShell.propTypes = {
 	code: PropTypes.string,
+	copyCode: PropTypes.bool,
 	solution: PropTypes.string,
 	hints: PropTypes.array,
 	addPreceding: PropTypes.bool,
@@ -585,6 +588,7 @@ RShell.propTypes = {
 
 RShell.defaultProps = {
 	code: '',
+	copyCode: false,
 	solution: '',
 	hints: [],
 	addPreceding: false,
