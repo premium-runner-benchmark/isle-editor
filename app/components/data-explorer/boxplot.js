@@ -165,7 +165,8 @@ class Boxplot extends Component {
 			group: [],
 			orientation: 'vertical',
 			overlayPoints: false,
-			showRModal: false
+			showRModal: false,
+			rVariant: 'baseR'
 		};
 	}
 
@@ -221,21 +222,38 @@ class Boxplot extends Component {
 			preCode = [`${dataName} <- data.frame(jsonlite::fromJSON("${this.props.url}"))`, `attach(${dataName})`];
 		}
 
-		var RCode = `boxplot(${this.state.variable}`;
+		let RCode = '';
+		// case 1: baseR
+		if ( this.state.rVariant === 'baseR' ) {
+			RCode += `boxplot(${this.state.variable}`;
 
-		if ( this.state.orientation === 'horizontal' ) {
-			RCode += ', horizontal = TRUE';
+			// iterate through the groupings
+			if ( this.state.group.length !== 0 ) {
+				RCode += ` ~ ${this.state.group[0].value}`;
+			}
+
+			// identify if its horiz
+			if ( this.state.orientation === 'horizontal' ) {
+				RCode += ', horizontal = TRUE';
+			}
+			RCode += ')';
+		} else {
+			RCode += `ggplot(data = ${dataName}, aes(x = `;
+			if ( this.state.group.length !== 0 ) {
+				// two variables
+				RCode += `${this.state.group[0].value}`;
+			} else {
+				RCode += `""`; // eslint-disable-line quotes
+			}
+			// add the boxplot
+			RCode += `, y = ${this.state.variable})) + geom_boxplot()`;
+
+			// check for points --> figure out a way to do this
+			// check for horiz
+			if ( this.state.orientation === 'horizontal' ) {
+				RCode += ' + coord_flip()';
+			}
 		}
-
-		// iterate through the groupings
-		// NOTE: the array can only be of length 1?
-		/* NOTE: THis doesnt work so I will turn it off
-		if ( this.state.group.length !== 0 ) {
-			RCode += ` ~ ${this.state.group}`;
-		}
-		*/
-
-		RCode += ')';
 
 		return (
 			<Modal
@@ -257,7 +275,7 @@ class Boxplot extends Component {
 					<RShell
 						prependCode={preCode}
 						code={RCode}
-						libraries={['jsonlite']}
+						libraries={['jsonlite', 'ggplot2']}
 						resettable
 					/>
 				</Modal.Body>
@@ -319,8 +337,19 @@ class Boxplot extends Component {
 							this.setState({ overlayPoints });
 						}}
 					/>
-					<Button variant="primary" block onClick={this.generateBoxplot}>Generate</Button>
+					<SelectInput
+						legend="R Variant:"
+						defaultValue={'baseR'}
+						options={['baseR', 'ggplot']}
+						onChange={( variable ) => {
+							this.setState({
+								rVariant: variable
+							});
+						}}
+						inline
+					/>
 					<Button variant="light" onClick={this.toggleRModal} disabled={isNull(this.props.url)}>Show R Code</Button>
+					<Button variant="primary" block onClick={this.generateBoxplot}>Generate</Button>
 				</Card.Body>
 				{modal}
 			</Card>

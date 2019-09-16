@@ -384,7 +384,8 @@ class Scatterplot extends Component {
 			lineBy: null,
 			smoothSpan: 0.66,
 			showRModal: false,
-			size: null
+			size: null,
+			rVariant: 'baseR'
 		};
 	}
 
@@ -442,44 +443,52 @@ class Scatterplot extends Component {
 			preCode = [`${dataName} <- data.frame(jsonlite::fromJSON("${this.props.url}"))`, `attach(${dataName})`];
 		}
 
-		var RCode = `plot(x = ${this.state.xval}, y = ${this.state.yval}`;
-		// add the features, be sure to close with the closing )
-		/*
-		color
-		size
-		----
-		labels
-		*/
-		if ( !isUndefinedOrNull(this.state.color) ) {
-			RCode += `, col = ${this.state.color}`;
-		}
-		if ( !isUndefinedOrNull(this.props.size) ) {
-			RCode += `, size = ${this.state.size}`;
-		}
-
-		// must end with this
-		RCode += ')';
-
-		// check for labels
-		if ( !isUndefinedOrNull(this.props.text) ) {
-			RCode += `\ntext(${this.state.xvar}, ${this.state.xvar}, labels = ${this.state.text})`;
-		}
-
-		// now to handle the regression case
-		/*
-		regressionLine: false,
-			regressionMethod: ['linear'],
-			lineBy: null,
-		*/
-		// case 1: regression of Y ~ X, linear method
-		// we have a regression
-		if ( this.state.regressionLine ) {
-			// linear and no gorupBy
-			if ( this.state.regressionMethod.length === 1 ) {
-				if ( this.state.regressionMethod[0] === 'linear' && isUndefinedOrNull(this.state.lineBy) ) {
-					RCode += `\nabline(lm(${this.state.yvar} ~ ${this.state.xvar}, data = ${dataName}))`;
-				}
+		let RCode = '';
+		if ( this.state.rVariant === 'baseR' ) {
+			RCode += `plot(x = ${this.state.xval}, y = ${this.state.yval}`;
+			// add the features, be sure to close with the closing )
+			/*
+			color
+			size
+			----
+			labels
+			*/
+			if ( !isUndefinedOrNull(this.state.color) ) {
+				RCode += `, col = ${this.state.color}`;
 			}
+			if ( !isUndefinedOrNull(this.props.size) ) {
+				RCode += `, size = ${this.state.size}`;
+			}
+	
+			// must end with this
+			RCode += ')';
+
+			// check for labels
+			if ( !isUndefinedOrNull(this.state.text) ) {
+				RCode += `\ntext(${this.state.xvar}, ${this.state.xvar}, labels = ${this.state.text})`;
+			}
+
+			// handle regression case
+			if ( this.state.regressionLine ) {
+				// linear and no gorupBy
+				if ( this.state.regressionMethod.length === 1 ) {
+					if ( this.state.regressionMethod[0] === 'linear' && isUndefinedOrNull(this.state.lineBy) ) {
+						RCode += `\nabline(lm(${this.state.yvar} ~ ${this.state.xvar}, data = ${dataName}))`;
+					}
+				}
+
+				// TO-DO: Do the other linear case
+			}
+		} else {
+			RCode += `ggplot(data = ${dataName}, aes(x = ${this.state.xval}, y = ${this.state.yval}))`;
+
+			// combine them because all are in geom_point
+			RCode += ` + geom_point(aes(color = ${this.state.color}, size = ${this.state.size}, shape = ${this.state.type}))`;
+
+			// add text
+			RCode += ` + geom_text(aes(label = ${this.state.text}))`;
+
+			// handle regression case
 		}
 		return (
 			<Modal
@@ -660,6 +669,17 @@ class Scatterplot extends Component {
 					<div style={{ clear: 'both' }}></div>
 					{this.renderRegressionLineOptions()}
 					<div style={{ clear: 'both' }}></div>
+					<SelectInput
+						legend="R Variant:"
+						defaultValue={'baseR'}
+						options={['baseR', 'ggplot']}
+						onChange={( variable ) => {
+							this.setState({
+								rVariant: variable
+							});
+						}}
+						inline
+					/>
 					<Button variant="primary" onClick={this.generateScatterplot}>Generate</Button>
 					<Button variant="light" onClick={this.toggleRModal} disabled={isUndefinedOrNull(this.props.url)}>Show R Code</Button>
 				</Card.Body>
