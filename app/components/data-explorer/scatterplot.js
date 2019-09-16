@@ -21,7 +21,6 @@ import roundn from '@stdlib/math/base/special/roundn';
 import mapValues from '@stdlib/utils/map-values';
 import groupBy from '@stdlib/utils/group-by';
 import group from '@stdlib/utils/group';
-import isNull from '@stdlib/assert/is-null';
 import isUndefinedOrNull from '@stdlib/assert/is-undefined-or-null';
 import unique from 'uniq';
 import mean from 'utils/statistic/mean';
