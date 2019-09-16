@@ -18,7 +18,6 @@ import Select from 'react-select';
 import isTouchDevice from 'is-touch-device';
 import Checkbox from 'components/input/checkbox';
 import FeedbackButtons from 'components/feedback';
-import contains from '@stdlib/assert/contains';
 import { isPrimitive as isNumber } from '@stdlib/assert/is-number';
 import isObject from '@stdlib/assert/is-object';
 import isNull from '@stdlib/assert/is-null';
@@ -80,6 +79,17 @@ const hasTouch = isTouchDevice();
 
 function preventGesture( e ) {
 	e.preventDefault();
+}
+
+function isAlreadyInserted( pos, insertedPages ) {
+	let alreadyInserted = false;
+	for ( let i = 0; i < insertedPages.length; i++ ) {
+		const { page } = insertedPages[ i ];
+		if ( page === pos ) {
+			alreadyInserted = true;
+		}
+	}
+	return alreadyInserted;
 }
 
 
@@ -193,6 +203,9 @@ class Sketchpad extends Component {
 
 		// Scale the magnifying glass:
 		this.zoomCtx.scale( DPR, DPR );
+
+		// Scale all drawing operations by the DPR:
+		this.ctx.scale( DPR, DPR );
 
 		if ( this.props.fullscreen ) {
 			this.windowResize = window.addEventListener( 'resize', this.handleResize );
@@ -367,24 +380,29 @@ class Sketchpad extends Component {
 						}
 					}
 					else if ( type === SKETCHPAD_INSERT_PAGE ) {
-						const { pos, noPages } = JSON.parse( action.value );
-						if ( noPages === this.state.noPages + 1 ) {
+						let { pos } = JSON.parse( action.value );
+						if ( action.email !== session.user.email ) {
+							pos = this.toLocalPage( pos, action.email );
+						}
+						const bool = isAlreadyInserted( pos, this.state.insertedPages );
+						if ( !bool ) {
 							debug( `Should insert page at ${pos}...` );
-							this.insertPage( pos, false );
+							this.insertPage( pos, action.email );
 						}
 					}
 					else if ( type === SKETCHPAD_INIT_PAGES ) {
 						const pagesToInsert = action.value;
-						debug( 'Initialize new pages: '+pagesToInsert.join( ', ' ) );
+						debug( 'Initialize new pages: '+pagesToInsert.length );
 						const newInsertedPages = this.state.insertedPages;
 						let inserted = 0;
 						for ( let i = 0; i < pagesToInsert.length; i++ ) {
-							const idx = pagesToInsert[ i ];
-							if ( !contains( this.state.insertedPages, idx ) ) {
+							const val = pagesToInsert[ i ];
+							const idx = val.page;
+							if ( !isAlreadyInserted( idx, this.state.insertedPages ) ) {
 								this.elements.splice( idx, 0, []);
 								this.backgrounds.splice( idx, 0, null );
 								this.recordingEndPositions.splice( idx, 0, 0 );
-								newInsertedPages.push( idx );
+								newInsertedPages.push( val );
 								inserted += 1;
 							}
 						}
@@ -447,33 +465,46 @@ class Sketchpad extends Component {
 						}
 					}
 					else if ( type === SKETCHPAD_CLEAR_PAGE ) {
-						const page = action.value;
+						const { page, sessionID } = JSON.parse( action.value );
 						const user = action.email;
-						const elems = this.elements[ page ];
-						const newElems = [];
-						for ( let i = 0; i < elems.length; i++ ) {
-							const e = elems[ i ];
-							if ( e.user !== user ) {
-								newElems.push( e );
-							}
-						}
-						this.elements[ page ] = newElems;
-						this.redraw();
-					}
-					else if ( type === SKETCHPAD_CLEAR_ALL_PAGES ) {
-						const user = action.email;
-						for ( let page = 0; page < this.state.noPages; page++ ) {
-							const elems = this.elements[ page ];
-							const newElems = [];
-							for ( let i = 0; i < elems.length; i++ ) {
-								const e = elems[ i ];
-								if ( e.user !== user ) {
-									newElems.push( e );
+						if ( sessionID !== session.sessionID ) {
+							if ( user === session.user.email ) {
+								// Own action, clear page:
+								this.clearPage( page );
+							} else {
+								// Only remove all elements from the sending user on the page:
+								const elems = this.elements[ page ];
+								const newElems = [];
+								for ( let i = 0; i < elems.length; i++ ) {
+									const e = elems[ i ];
+									if ( e.user !== user ) {
+										newElems.push( e );
+									}
 								}
+								this.elements[ page ] = newElems;
+								this.redraw();
 							}
-							this.elements[ page ] = newElems;
 						}
-						this.redraw();
+					}
+					else if ( type === SKETCHPAD_CLEAR_ALL_PAGES && action.value !== session.sessionID ) {
+						if ( action.email === session.user.email ) {
+							this.clearAll( true );
+						}
+						else {
+							const user = action.email;
+							for ( let page = 0; page < this.state.noPages; page++ ) {
+								const elems = this.elements[ page ];
+								const newElems = [];
+								for ( let i = 0; i < elems.length; i++ ) {
+									const e = elems[ i ];
+									if ( e.user !== user ) {
+										newElems.push( e );
+									}
+								}
+								this.elements[ page ] = newElems;
+							}
+							this.redraw();
+						}
 					}
 				}
 			});
@@ -569,8 +600,8 @@ class Sketchpad extends Component {
 			this.recordingEndPositions = data.recordingEndPositions;
 			for ( let i = 0; i < data.state.insertedPages.length; i++ ) {
 				// Insert empty pages at the correct locations:
-				const pageNo = data.state.insertedPages[ i ];
-				this.backgrounds.splice( pageNo, 0, null );
+				const { page } = data.state.insertedPages[ i ];
+				this.backgrounds.splice( page, 0, null );
 			}
 			const page = this.readURL();
 			debug( 'Go to page '+page );
@@ -639,6 +670,7 @@ class Sketchpad extends Component {
 
 		const page = this.backgrounds[ pageNumber ];
 		if ( page ) {
+			debug( `Found background for page ${pageNumber}...` );
 			let ratio;
 			if ( this.props.fill === 'vertical' ) {
 				ratio = this.state.canvasHeight / page.getViewport({ scale: 1.0 }).height;
@@ -696,6 +728,9 @@ class Sketchpad extends Component {
 				debug( `Background rendered for page ${pageNumber}` );
 			});
 		}
+
+		// Reset background data for inserted slides:
+		this.backgroundData = null;
 		if ( ctx ) {
 			if ( !this.props.pdf ) {
 				// Scale all drawing operations by the DPR when no background is present:
@@ -849,43 +884,50 @@ class Sketchpad extends Component {
 		};
 	}
 
-	clear = () => {
-		const currentPage = this.state.currentPage;
-		if ( contains( this.state.insertedPages, currentPage ) ) {
+	clearPage = ( selectedPage ) => {
+		if ( isAlreadyInserted( selectedPage, this.state.insertedPages ) ) {
 			debug( 'Clear an inserted page; deleting it completely...' );
-			this.elements.splice( currentPage, 1 );
-			this.backgrounds.splice( currentPage, 1 );
-			this.recordingEndPositions.splice( currentPage, 1 );
+			this.elements.splice( selectedPage, 1 );
+			this.backgrounds.splice( selectedPage, 1 );
+			this.recordingEndPositions.splice( selectedPage, 1 );
 			const newInsertedPages = [];
 			for ( let i = 0; i < this.state.insertedPages.length; i++ ) {
-				let page = this.state.insertedPages[ i ];
-				if ( currentPage !== page ) {
-					if ( page > currentPage ) {
-						page -= 1;
+				const val = this.state.insertedPages[ i ];
+				if ( selectedPage !== val.page ) {
+					if ( val.page > selectedPage ) {
+						val.page -= 1;
 					}
-					newInsertedPages.push( page );
+					newInsertedPages.push( val );
 				}
 			}
 			debug( 'New inserted pages are: '+newInsertedPages.join( ', ' ) );
 			this.setState({
 				noPages: this.state.noPages - 1,
 				insertedPages: newInsertedPages,
-				currentPage: this.state.currentPage - 1
+				selectedPage: this.state.selectedPage - 1
 			}, () => {
 				this.redraw();
 			});
 		}
 		else {
-			this.elements[ currentPage ] = [];
-			this.recordingEndPositions[ currentPage ] = 0;
+			this.elements[ selectedPage ] = [];
+			this.recordingEndPositions[ selectedPage ] = 0;
 			this.redraw();
 		}
+	}
+
+	clear = () => {
+		const currentPage = this.state.currentPage;
+		this.clearPage( currentPage );
+		const session = this.context;
 		const logAction = {
 			id: this.id,
 			type: SKETCHPAD_CLEAR_PAGE,
-			value: currentPage
+			value: JSON.stringify({
+				page: currentPage,
+				sessionID: session.sessionID
+			})
 		};
-		const session = this.context;
 		if (
 			session.isOwner() && this.state.transmitOwner
 		) {
@@ -895,7 +937,7 @@ class Sketchpad extends Component {
 		}
 	}
 
-	clearAll = () => {
+	clearAll = ( silent = false ) => {
 		const session = this.context;
 		const canvas = this.canvas;
 		const ctx = this.ctx;
@@ -933,14 +975,16 @@ class Sketchpad extends Component {
 		const logAction = {
 			id: this.id,
 			type: SKETCHPAD_CLEAR_ALL_PAGES,
-			value: null
+			value: session.sessionID
 		};
-		if (
-			session.isOwner() && this.state.transmitOwner
-		) {
-			session.log( logAction, 'members' );
-		} else {
-			session.log( logAction, 'owners' );
+		if ( !silent ) {
+			if (
+				session.isOwner() && this.state.transmitOwner
+			) {
+				session.log( logAction, 'members' );
+			} else {
+				session.log( logAction, 'owners' );
+			}
 		}
 	}
 
@@ -1320,9 +1364,9 @@ class Sketchpad extends Component {
 		});
 	}
 
-	saveToPNG = () => {
-		const name = this.id+'.png';
+	saveAsPNG = () => {
 		const current = this.state.currentPage;
+		const name = this.id+'_'+(current+1)+'.png';
 		const canvas = this.canvas;
 		if ( !this.backgrounds[ current ]) {
 			// Set white background if none present:
@@ -1391,7 +1435,7 @@ class Sketchpad extends Component {
 		});
 	}
 
-	insertPage = ( idx, logging = true ) => {
+	insertPage = ( idx, from ) => {
 		this.elements.splice( idx, 0, []);
 		this.backgrounds.splice( idx, 0, null );
 		this.recordingEndPositions.splice( idx, 0, 0 );
@@ -1399,8 +1443,12 @@ class Sketchpad extends Component {
 		while ( textLayer.firstChild ) {
 			textLayer.removeChild( textLayer.firstChild );
 		}
+		const session = this.context;
 		const newInsertedPages = this.state.insertedPages;
-		newInsertedPages.push( idx );
+		newInsertedPages.push({
+			page: idx,
+			email: from || session.user.email
+		});
 		this.setState({
 			noPages: this.state.noPages + 1,
 			currentPage: idx,
@@ -1411,16 +1459,14 @@ class Sketchpad extends Component {
 			this.updateURL( this.state.currentPage );
 
 			this.redraw();
-			if ( logging ) {
-				const session = this.context;
+			if ( !from ) {
 				session.log({
 					id: this.id,
 					type: SKETCHPAD_INSERT_PAGE,
 					value: JSON.stringify({
-						pos: idx,
-						noPages: this.state.noPages
+						pos: idx
 					})
-				}, 'members' );
+				}, session.isOwner() ? 'members' : session.user.email );
 			}
 		});
 	}
@@ -2042,8 +2088,7 @@ class Sketchpad extends Component {
 		return (
 			<ButtonGroup size="sm" className="sketch-save-buttons sketch-button-group">
 				{ !this.props.pdf ? <TooltipButton tooltip="Load PDF (clears current canvas)" onClick={this.loadPDF} size="sm" glyph="file" /> : null }
-				<TooltipButton tooltip="Export current page (PNG)" onClick={this.saveToPNG} glyph="file-image" size="sm" />
-				<TooltipButton tooltip="Download PDF" onClick={this.toggleSaveModal} glyph="file-pdf" size="sm" />
+				<TooltipButton tooltip="Download Slides" onClick={this.toggleSaveModal} glyph="file-pdf" size="sm" />
 				<TooltipButton tooltip="Save in browser" onClick={() => {
 					this.saveInBrowser( ( err ) => {
 						if ( err ) {
@@ -2180,7 +2225,7 @@ class Sketchpad extends Component {
 			.map( user => {
 				return { value: user.name, label: user.name };
 			});
-		const popover = <Popover id="popover-positioned-right" title="Receive actions from...">
+		const popover = <Popover id="popover-positioned-right" title="Remote control by...">
 			<Select isClearable inline options={users} onChange={( newValue ) => {
 				this.setState({
 					receiveFrom: newValue
@@ -2202,15 +2247,27 @@ class Sketchpad extends Component {
 		);
 	}
 
+	toLocalPage = ( idx, ownerEmail ) => {
+		const addedPages = this.state.insertedPages;
+		let out = idx;
+		for ( let i = 0; i < addedPages.length; i++ ) {
+			const { page, email } = addedPages[ i ];
+			if ( page < idx && email !== ownerEmail ) {
+				out += 1;
+			}
+		}
+		return out;
+	}
+
 	toOriginalPage = ( idx ) => {
 		const addedPages = this.state.insertedPages;
 		let out = idx;
 		for ( let i = 0; i < addedPages.length; i++ ) {
-			const page = addedPages[ i ];
+			const { page } = addedPages[ i ];
 			if ( page === idx ) {
 				return null;
 			}
-			else if ( addedPages[ i ] < idx ) {
+			else if ( page < idx ) {
 				out -= 1;
 			}
 		}
@@ -2497,6 +2554,7 @@ class Sketchpad extends Component {
 						container={this}
 						show={this.state.showSaveModal}
 						saveAsPDF={this.saveAsPDF}
+						saveAsPNG={this.saveAsPNG}
 						onHide={this.toggleSaveModal}
 						pdf={this.props.pdf}
 						session={this.context}
@@ -2542,7 +2600,7 @@ class Sketchpad extends Component {
 Sketchpad.defaultProps = {
 	autoSave: true,
 	feedbackButtons: false,
-	intervalTime: 30000,
+	intervalTime: 10000,
 	hideInputButtons: false,
 	hideNavigationButtons: false,
 	hideRecordingButtons: false,

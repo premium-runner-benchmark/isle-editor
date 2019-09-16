@@ -117,17 +117,20 @@ class SelectInput extends Input {
 		const newState = {};
 		const { prevProps } = prevState;
 		if ( nextProps.defaultValue !== prevProps.defaultValue ) {
+			debug( 'Default value has changed...' );
 			newState.value = transformValue( nextProps.defaultValue );
 		}
 		else if ( nextProps.bind !== prevProps.bind ) {
 			newState.value = global.lesson.state[ nextProps.bind ];
 		}
 		if ( nextProps.options !== prevProps.options ) {
+			debug( 'Options have changed...' );
 			newState.options = nextProps.options.map( e => {
 				return { 'label': e, 'value': e };
 			});
 		}
 		if ( !isEmptyObject( newState ) ) {
+			newState.prevProps = nextProps;
 			return newState;
 		}
 		return null;
@@ -168,7 +171,17 @@ class SelectInput extends Input {
 	* React component render method.
 	*/
 	render() {
+		debug( 'Render select component...' );
 		let style;
+		let value;
+		if ( this.props.value !== void 0 ) {
+			value = ( this.props.value || [] ).map( e => {
+				return { 'label': e, 'value': e };
+			});
+		}
+		else {
+			value = this.state.value;
+		}
 		if ( this.props.inline ) {
 			style = {
 				width: '180px',
@@ -197,7 +210,7 @@ class SelectInput extends Input {
 						name="form-field-name"
 						className="select-field"
 						{...this.props}
-						value={this.state.value}
+						value={value}
 						options={this.state.options}
 						onChange={this.handleChange}
 						placeholder={this.props.placeholder}

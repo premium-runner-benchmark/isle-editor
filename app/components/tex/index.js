@@ -33,6 +33,7 @@ let counter = 1;
 * @property {string} tag - Custom characters displayed for display equations at the right side. Defaults to the number of the equation inside the lesson
 * @property {Object} elems - `object` with `keys` denoting LaTeX characters and their corresponding values being configuration `objects` to make them interactive. Setting a `tooltip` option will show a tooltip when hovering over the LaTeX characters. Setting a `variable` property will display an input slider to change the respective state variable; in this case, additional properties `legend`, `min`, `max`, and `step` are supported
 * @property {string} popoverPlacement - popover position for the specified `elems`
+* @property {Function} onPopover - callback `function` when a control popover is toggled on or off; receives the display status as a boolean as its sole argument
 * @property {Function} onClick - callback `function` invoked whenever a user clicks on the equation
 */
 class TeX extends Component {
@@ -70,13 +71,13 @@ class TeX extends Component {
 		const dom = findDOMNode( this );
 		const self = this;
 		select( dom ).
-			selectAll( '.mord .text' ).
+			selectAll( '.mord' ).
 			each( onMord );
 
 		function onMord( d ) {
 			const $this = select( this );
 			if ( self.state.popoverTarget !== this ) {
-				$this.style( 'color', 'black' );
+				$this.style( 'color', 'inherit' );
 			}
 			keys( self.props.elems ).forEach( ( prop ) => {
 				let elem = self.props.elems[ prop ];
@@ -118,20 +119,26 @@ class TeX extends Component {
 							} else {
 								config.bind = elem.variable;
 							}
-							let showPopover;
 							if ( self.state.popoverName !== prop ) {
-								showPopover = true;
+								self.setState({
+									showTooltip: false,
+									showPopover: true,
+									popoverContent: elem.body,
+									popoverTarget: this,
+									popoverName: prop,
+									config
+								});
+								self.props.onPopover( true );
 							} else {
-								showPopover = false;
+								self.setState({
+									showTooltip: false,
+									showPopover: false,
+									popoverContent: null,
+									popoverTarget: null,
+									popoverName: null
+								});
+								self.props.onPopover( false );
 							}
-							self.setState({
-								showTooltip: false,
-								showPopover,
-								popoverContent: elem.body,
-								popoverTarget: this,
-								popoverName: prop,
-								config
-							});
 						}
 					});
 				}
@@ -240,6 +247,7 @@ TeX.propTypes = {
 	tag: PropTypes.string,
 	elems: PropTypes.object,
 	popoverPlacement: PropTypes.string,
+	onPopover: PropTypes.func,
 	onClick: PropTypes.func
 };
 
@@ -250,6 +258,7 @@ TeX.defaultProps = {
 	tag: null,
 	elems: {},
 	popoverPlacement: 'top',
+	onPopover() {},
 	onClick() {}
 };
 

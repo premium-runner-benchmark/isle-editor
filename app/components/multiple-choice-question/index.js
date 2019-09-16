@@ -7,6 +7,7 @@ import ListGroup from 'react-bootstrap/ListGroup';
 import Card from 'react-bootstrap/Card';
 import logger from 'debug';
 import isArray from '@stdlib/assert/is-array';
+import isNull from '@stdlib/assert/is-null';
 import contains from '@stdlib/assert/contains';
 import ResponseVisualizer from 'components/response-visualizer';
 import ChatButton from 'components/chat-button';
@@ -250,6 +251,9 @@ class MultipleChoiceQuestion extends Component {
 				}
 				return this.state.submitted || !this.state.answerSelected;
 			case 'incremental':
+				if ( isNull( this.state.active ) ) {
+					return true;
+				}
 				if ( !this.state.submitted ) {
 					return false;
 				}
@@ -423,13 +427,13 @@ class MultipleChoiceQuestion extends Component {
 							block
 						>{submitLabel}</Button>
 						{ nHints > 0 ?
-							<HintButton onClick={this.logHint} hints={hints} placement={hintPlacement} /> :
+							<HintButton size="small" onClick={this.logHint} hints={hints} placement={hintPlacement} /> :
 							null
 						}
 						{
 							chat && this.id ?
 							<div style={{ display: 'inline-block' }}>
-								<ChatButton for={this.id} />
+								<ChatButton size="small" for={this.id} />
 							</div> : null
 						}
 						<VoiceControl reference={this} id={this.props.voiceID} commands={VOICE_COMMANDS} />
