@@ -266,7 +266,8 @@ class Histogram extends Component {
 
 		return (
 			<Modal
-				className="Lesson"
+				className="Lesson input"
+				dialogClassName="modal-40w"
 				show={this.state.showRModal}
 				onHide={
 					()=>{
