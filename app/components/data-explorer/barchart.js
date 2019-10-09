@@ -178,8 +178,7 @@ class Barchart extends Component {
 			relative: false,
 			totalPercent: false,
 			xOrder: null,
-			showRModal: false,
-			rVariant: 'baseR'
+			showRModal: false
 		};
 	}
 
@@ -236,32 +235,19 @@ class Barchart extends Component {
 			preCode = [`${dataName} <- data.frame(jsonlite::fromJSON("${this.props.url}"))`, `attach(${dataName})`];
 		}
 		var RCode = '';
-		if ( this.state.rVariant === 'baseR' ) {
-			RCode += '## make table\n';
-			RCode += `daTable <- table(${this.state.xVar})\n`;
-			RCode += 'barplot(daTable';
-
-			if ( this.state.horiz ) {
-				RCode += ', horiz = TRUE';
+		// in ggplot2 functionality
+		RCode += `ggplot(data = ${dataName}, aes(x = ${this.state.xVar}`;
+		// do the fill
+		if ( !isUndefinedOrNull(this.state.groupVar) ) {
+			if ( this.state.totalPercent ) {
+				RCode += `, fill = ${this.state.groupVar})) + geom_bar(aes(y = ..count../sum(..count..)), position="dodge")`;
+			} else {
+				RCode += `, fill = ${this.state.groupVar})) + geom_bar(aes(y = ..count..), position="dodge")`;
 			}
+		}
 
-			RCode += ')';
-		} else {
-			// in ggplot2 functionality
-			RCode += `ggplot(data = ${dataName}, aes(x = ${this.state.xVar}`;
-
-			// do the fill
-			if ( !isUndefinedOrNull(this.state.groupVar) ) {
-				if ( this.state.totalPercent ) {
-					RCode += `, fill = ${this.state.groupVar})) + geom_bar(aes(y = ..count../sum(..count..)), position="dodge")`;
-				} else {
-					RCode += `, fill = ${this.state.groupVar})) + geom_bar(aes(y = ..count..), position="dodge")`;
-				}
-			}
-
-			if ( this.state.horiz ) {
-				RCode += ' + coord_flip()';
-			}
+		if ( this.state.horiz ) {
+			RCode += ' + coord_flip()';
 		}
 
 		// TO-DO: investiage the lattice::barplot function to group-by, see https://stackoverflow.com/questions/17721126/simplest-way-to-do-grouped-barplot

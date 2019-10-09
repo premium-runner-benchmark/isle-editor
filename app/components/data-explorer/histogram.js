@@ -262,7 +262,7 @@ class Histogram extends Component {
 			preCode = [`${dataName} <- data.frame(jsonlite::fromJSON("${this.props.url}"))`, `attach(${dataName})`];
 		}
 
-		var RCode = `hist(${this.state.variable}, nclass = ${this.state.nBins})`;
+		var RCode = `ggplot(data = ${dataName}, aes(x = ${this.state.variable})) + geom_histogram(bins = ${this.state.nBins})`;
 
 		return (
 			<Modal
@@ -375,7 +375,11 @@ class Histogram extends Component {
 						/>
 					</div>
 					<Button variant="primary" block onClick={this.generateHistogram.bind( this )}>Generate</Button>
-					<Button variant="light" onClick={this.toggleRModal} disabled={isNull(this.props.url)}>Show R Code</Button>
+					{
+						this.props.showRCode ?
+							<Button variant="light" onClick={this.toggleRModal} disabled={isUndefinedOrNull(this.props.url)}>Show R Code</Button> :
+							null
+					}
 				</Card.Body>
 				{modal}
 			</Card>
@@ -392,6 +396,7 @@ Histogram.defaultProps = {
 	logAction() {},
 	session: {},
 	showDensityOption: true,
+	showRCode: false,
 	onSelected() {},
 	url: null
 };
@@ -407,6 +412,7 @@ Histogram.propTypes = {
 	onSelected: PropTypes.func,
 	onCreated: PropTypes.func.isRequired,
 	session: PropTypes.object,
+	showRCode: PropTypes.bool,
 	showDensityOption: PropTypes.bool,
 	variables: PropTypes.array.isRequired,
 	url: PropTypes.string

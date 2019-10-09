@@ -14,6 +14,7 @@ import Plotly from 'components/plotly';
 import RShell from 'components/r/shell';
 import randomstring from 'utils/randomstring/alphanumeric';
 import objectKeys from '@stdlib/utils/keys';
+import isUndefinedOrNull from '@stdlib/assert/is-undefined-or-null';
 import isNull from '@stdlib/assert/is-null';
 import { DATA_EXPLORER_SHARE_BOXPLOT, DATA_EXPLORER_BOXPLOT } from 'constants/actions.js';
 import QuestionButton from './question_button.js';
@@ -165,8 +166,7 @@ class Boxplot extends Component {
 			group: [],
 			orientation: 'vertical',
 			overlayPoints: false,
-			showRModal: false,
-			rVariant: 'baseR'
+			showRModal: false
 		};
 	}
 
@@ -223,36 +223,19 @@ class Boxplot extends Component {
 		}
 
 		let RCode = '';
-		// case 1: baseR
-		if ( this.state.rVariant === 'baseR' ) {
-			RCode += `boxplot(${this.state.variable}`;
-
-			// iterate through the groupings
-			if ( this.state.group.length !== 0 ) {
-				RCode += ` ~ ${this.state.group[0].value}`;
-			}
-
-			// identify if its horiz
-			if ( this.state.orientation === 'horizontal' ) {
-				RCode += ', horizontal = TRUE';
-			}
-			RCode += ')';
+		RCode += `ggplot(data = ${dataName}, aes(x = `;
+		if ( this.state.group.length !== 0 ) {
+			// two variables
+			RCode += `${this.state.group[0].value}`;
 		} else {
-			RCode += `ggplot(data = ${dataName}, aes(x = `;
-			if ( this.state.group.length !== 0 ) {
-				// two variables
-				RCode += `${this.state.group[0].value}`;
-			} else {
-				RCode += `""`; // eslint-disable-line quotes
-			}
-			// add the boxplot
-			RCode += `, y = ${this.state.variable})) + geom_boxplot()`;
-
-			// check for points --> figure out a way to do this
-			// check for horiz
-			if ( this.state.orientation === 'horizontal' ) {
-				RCode += ' + coord_flip()';
-			}
+			RCode += `""`; // eslint-disable-line quotes
+		}
+		// add the boxplot
+		RCode += `, y = ${this.state.variable})) + geom_boxplot()`;
+		// check for points --> figure out a way to do this
+		// check for horiz
+		if ( this.state.orientation === 'horizontal' ) {
+			RCode += ' + coord_flip()';
 		}
 
 		return (
@@ -337,18 +320,11 @@ class Boxplot extends Component {
 							this.setState({ overlayPoints });
 						}}
 					/>
-					<SelectInput
-						legend="R Variant:"
-						defaultValue={'baseR'}
-						options={['baseR', 'ggplot']}
-						onChange={( variable ) => {
-							this.setState({
-								rVariant: variable
-							});
-						}}
-						inline
-					/>
-					<Button variant="light" onClick={this.toggleRModal} disabled={isNull(this.props.url)}>Show R Code</Button>
+					{
+						this.props.showRCode ?
+							<Button variant="light" onClick={this.toggleRModal} disabled={isUndefinedOrNull(this.props.url)}>Show R Code</Button> :
+							null
+					}
 					<Button variant="primary" block onClick={this.generateBoxplot}>Generate</Button>
 				</Card.Body>
 				{modal}
@@ -366,6 +342,7 @@ Boxplot.defaultProps = {
 	logAction() {},
 	onCreated() {},
 	session: {},
+	showRCode: false,
 	url: null
 };
 
@@ -376,6 +353,7 @@ Boxplot.propTypes = {
 	logAction: PropTypes.func,
 	onCreated: PropTypes.func,
 	session: PropTypes.object,
+	showRCode: PropTypes.bool,
 	variables: PropTypes.array.isRequired,
 	url: PropTypes.string
 };

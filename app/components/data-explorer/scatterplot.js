@@ -384,8 +384,7 @@ class Scatterplot extends Component {
 			lineBy: null,
 			smoothSpan: 0.66,
 			showRModal: false,
-			size: null,
-			rVariant: 'baseR'
+			size: null
 		};
 	}
 
@@ -444,52 +443,27 @@ class Scatterplot extends Component {
 		}
 
 		let RCode = '';
-		if ( this.state.rVariant === 'baseR' ) {
-			RCode += `plot(x = ${this.state.xval}, y = ${this.state.yval}`;
-			// add the features, be sure to close with the closing )
-			/*
-			color
-			size
-			----
-			labels
-			*/
-			if ( !isUndefinedOrNull(this.state.color) ) {
-				RCode += `, col = ${this.state.color}`;
-			}
-			if ( !isUndefinedOrNull(this.props.size) ) {
-				RCode += `, size = ${this.state.size}`;
-			}
-	
-			// must end with this
-			RCode += ')';
+		RCode += `ggplot(data = ${dataName}, aes(x = ${this.state.xval}, y = ${this.state.yval}))`;
+		// combine them because all are in geom_point
+		RCode += ` + geom_point(aes(color = ${this.state.color}, size = ${this.state.size}, shape = ${this.state.type}))`;
+		// add text
+		RCode += ` + geom_text(aes(label = ${this.state.text}))`;
 
-			// check for labels
-			if ( !isUndefinedOrNull(this.state.text) ) {
-				RCode += `\ntext(${this.state.xvar}, ${this.state.xvar}, labels = ${this.state.text})`;
-			}
-
-			// handle regression case
-			if ( this.state.regressionLine ) {
-				// linear and no gorupBy
-				if ( this.state.regressionMethod.length === 1 ) {
-					if ( this.state.regressionMethod[0] === 'linear' && isUndefinedOrNull(this.state.lineBy) ) {
-						RCode += `\nabline(lm(${this.state.yvar} ~ ${this.state.xvar}, data = ${dataName}))`;
-					}
+		if ( this.state.regressionLine ) {
+			// now check the type of regression
+			if ( this.state.regressionMethod.length === 1 ) {
+				if ( this.state.regressionMethod[0] === 'linear' ) {
+					RCode += ` + geom_smooth(method = 'lm', formula = ${this.state.yval} ~ ${this.state.xval})`;
+				} else {
+					RCode += ` + geom_smooth(method = 'smooth', formula = ${this.state.yval} ~ ${this.state.xval})`;
 				}
-
-				// TO-DO: Do the other linear case
+			} else {
+				RCode += ` + geom_smooth(method = 'lm', formula = ${this.state.yval} ~ ${this.state.xval})`;
+				RCode += ` + geom_smooth(method = 'smooth', formula = ${this.state.yval} ~ ${this.state.xval})`;
 			}
-		} else {
-			RCode += `ggplot(data = ${dataName}, aes(x = ${this.state.xval}, y = ${this.state.yval}))`;
-
-			// combine them because all are in geom_point
-			RCode += ` + geom_point(aes(color = ${this.state.color}, size = ${this.state.size}, shape = ${this.state.type}))`;
-
-			// add text
-			RCode += ` + geom_text(aes(label = ${this.state.text}))`;
-
-			// handle regression case
 		}
+
+		// handle regression case
 		return (
 			<Modal
 				className="Lesson input"
@@ -669,19 +643,12 @@ class Scatterplot extends Component {
 					<div style={{ clear: 'both' }}></div>
 					{this.renderRegressionLineOptions()}
 					<div style={{ clear: 'both' }}></div>
-					<SelectInput
-						legend="R Variant:"
-						defaultValue={'baseR'}
-						options={['baseR', 'ggplot']}
-						onChange={( variable ) => {
-							this.setState({
-								rVariant: variable
-							});
-						}}
-						inline
-					/>
 					<Button variant="primary" onClick={this.generateScatterplot}>Generate</Button>
-					<Button variant="light" onClick={this.toggleRModal} disabled={isUndefinedOrNull(this.props.url)}>Show R Code</Button>
+					{
+						this.props.showRCode ?
+							<Button variant="light" onClick={this.toggleRModal} disabled={isUndefinedOrNull(this.props.url)}>Show R Code</Button> :
+							null
+					}
 				</Card.Body>
 				{modal}
 			</Card>
@@ -699,6 +666,7 @@ Scatterplot.defaultProps = {
 	logAction() {},
 	onSelected() {},
 	session: {},
+	showRCode: false,
 	showRegressionOption: true,
 	url: null
 };
@@ -715,9 +683,10 @@ Scatterplot.propTypes = {
 	onSelected: PropTypes.func,
 	onCreated: PropTypes.func.isRequired,
 	session: PropTypes.object,
+	showRCode: PropTypes.bool,
 	showRegressionOption: PropTypes.bool,
 	variables: PropTypes.array.isRequired,
-	url: PropTypes.string
+	url: PropTypes.string,
 };
 
 

@@ -781,6 +781,7 @@ class DataExplorer extends Component {
 						{...categoricalProps}
 						logAction={this.logAction}
 						session={this.context}
+						showRCode={this.props.showRCode}
 						onSelected={( name, selected ) => {
 							const newFilters = [];
 							newFilters.push({
@@ -799,6 +800,7 @@ class DataExplorer extends Component {
 						{...quantitativeProps}
 						logAction={this.logAction}
 						session={this.context}
+						showRCode={this.props.showRCode}
 						url={this.props.dataInfo.url}
 					/>;
 					break;
@@ -823,6 +825,7 @@ class DataExplorer extends Component {
 						{...quantitativeProps}
 						logAction={this.logAction}
 						session={this.context}
+						showRCode={this.props.showRCode}
 						showDensityOption={this.props.histogramDensities}
 						onSelected={( name, selected ) => {
 							const newFilters = [];
@@ -850,6 +853,7 @@ class DataExplorer extends Component {
 				case 'Pie Chart':
 					content = <Piechart
 						{...categoricalProps}
+						showRCode={this.props.showRCode}
 						logAction={this.logAction}
 						session={this.context}
 					/>;
@@ -859,6 +863,7 @@ class DataExplorer extends Component {
 						{...quantitativeProps}
 						logAction={this.logAction}
 						session={this.context}
+						showRCode={this.props.showRCode}
 						onSelected={this.on2dSelection}
 						url={this.props.dataInfo.url}
 					/>;
@@ -1308,6 +1313,7 @@ DataExplorer.defaultProps = {
 	editorProps: null,
 	editorTitle: 'Report',
 	histogramDensities: true,
+	showRCode: false,
 	showTestDecisions: true,
 	style: {}
 };
@@ -1328,6 +1334,7 @@ DataExplorer.propTypes = {
 	plots: PropTypes.array,
 	questions: PropTypes.node,
 	showTestDecisions: PropTypes.bool,
+	showRCode: PropTypes.bool,
 	statistics: PropTypes.array,
 	style: PropTypes.object,
 	tables: PropTypes.array,
