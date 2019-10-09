@@ -2,6 +2,8 @@
 
 import React, { Component } from 'react';
 import PropTypes from 'prop-types';
+import Card from 'react-bootstrap/Card';
+import Modal from 'react-bootstrap/Modal';
 import SelectInput from 'components/input/select';
 import Dashboard from 'components/dashboard';
 import Plotly from 'components/plotly';
@@ -132,6 +134,58 @@ class PieChart extends Component {
 		this.props.onCreated( output );
 	}
 
+	toggleRModal = () => {
+		this.setState({
+			showRModal: true
+		});
+	}
+
+	generateRModal = () => {
+		// handle the prepended code first --> array of commands
+		// https://isle.heinz.cmu.edu/demonstrations_youtube.json
+		/*
+		https://phd-serv5.heinz.cmu.edu/ocpu/library/';
+		*/
+		var preCode = [''];
+		const nameReg = /\_(.*?).\w+/;
+		const dataNameWUnderscore = nameReg.exec(this.props.url)[0]; // captures including the _, need to remove it
+		const dataName = dataNameWUnderscore.substring(1, dataNameWUnderscore.length);
+		if ( !isUndefinedOrNull( this.props.url ) ) {
+			preCode = [`${dataName} <- data.frame(jsonlite::fromJSON("${this.props.url}"))`, `attach(${dataName})`];
+		}
+
+		let RCode = '';
+		RCode += `ggplot(data = ${dataName}, aes(x = factor(1), fill = ${this.state.variable}))`;
+		RCode += ' + geom_bar(width = 1) + coord_polar("y")';
+
+		return (
+			<Modal
+				className="Lesson input"
+				dialogClassName="modal-40w"
+				show={this.state.showRModal}
+				onHide={
+					()=>{
+						this.setState({
+							showRModal: false
+						});
+				}}>
+				<Modal.Header closeButton>
+					<Modal.Title>
+						R Code
+					</Modal.Title>
+				</Modal.Header>
+				<Modal.Body>
+					<RShell
+						prependCode={preCode}
+						code={RCode}
+						libraries={['jsonlite', 'ggplot2']}
+						resettable
+					/>
+				</Modal.Body>
+			</Modal>
+		);
+	}
+
 	render() {
 		const { variables, defaultValue, groupingVariables } = this.props;
 		return (
@@ -163,7 +217,8 @@ PieChart.defaultProps = {
 	defaultValue: null,
 	groupingVariables: null,
 	logAction() {},
-	session: {}
+	session: {},
+	showRCode: false
 };
 
 
@@ -176,6 +231,7 @@ PieChart.propTypes = {
 	logAction: PropTypes.func,
 	onCreated: PropTypes.func.isRequired,
 	session: PropTypes.object,
+	showRCode: PropTypes.bool,
 	variables: PropTypes.array.isRequired
 };
 

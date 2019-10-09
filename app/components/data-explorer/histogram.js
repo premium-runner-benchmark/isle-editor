@@ -20,6 +20,7 @@ import max from 'utils/statistic/max';
 import mean from 'utils/statistic/mean';
 import stdev from 'utils/statistic/stdev';
 import { isPrimitive as isNumber } from '@stdlib/assert/is-number';
+import isUndefinedOrNull from '@stdlib/assert/is-undefined-or-null';
 import pow from '@stdlib/math/base/special/pow';
 import gaussian from '@stdlib/stats/base/dists/normal/pdf';
 import dexp from '@stdlib/stats/base/dists/exponential/pdf';
@@ -262,7 +263,19 @@ class Histogram extends Component {
 			preCode = [`${dataName} <- data.frame(jsonlite::fromJSON("${this.props.url}"))`, `attach(${dataName})`];
 		}
 
-		var RCode = `ggplot(data = ${dataName}, aes(x = ${this.state.variable})) + geom_histogram(bins = ${this.state.nBins})`;
+		var RCode = `ggplot(data = ${dataName}, aes(x = ${this.state.variable}`;
+		if ( isUndefinedOrNull(this.state.group) ) {
+			RCode += `)) + geom_histogram(bins = ${this.state.nBins}`;
+		} else {
+			RCode += `, color = factor(${this.state.group})))`;
+			RCode += ` + geom_histogram(bins = ${this.state.nBins}, alpha = 0.5, position = "stack", fill =  "white`;
+		}
+
+		if ( this.state.overlayDensity ) {
+			RCode += 'aes(y = ..density..)) + geom_density(alpha = 0.2, fill = "#FF6666")';
+		} else {
+			RCode += ')';
+		}
 
 		return (
 			<Modal
@@ -284,7 +297,7 @@ class Histogram extends Component {
 					<RShell
 						prependCode={preCode}
 						code={RCode}
-						libraries={['jsonlite']}
+						libraries={['jsonlite', 'ggplot2']}
 						resettable
 					/>
 				</Modal.Body>
