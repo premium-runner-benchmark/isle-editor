@@ -181,7 +181,6 @@ const config = {
 		minimizer: [
 			new TerserPlugin({
 				extractComments: 'all',
-				cache: true,
 				parallel: true
 			})
 		]

@@ -497,7 +497,6 @@ function writeIndexFile({
 				new OptimizeCSSAssetsPlugin({}),
 				new TerserPlugin({
 					extractComments: 'all',
-					cache: true,
 					parallel: true,
 					terserOptions: {
 						warnings: true,
