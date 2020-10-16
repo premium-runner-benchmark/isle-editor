@@ -4,14 +4,13 @@ import { appendFileSync, copyFileSync, mkdirSync, readFileSync, unlinkSync, writ
 import { copy, removeSync } from 'fs-extra';
 import { basename, dirname, extname, resolve, join } from 'path';
 import webpack from 'webpack';
-import TerserPlugin from 'terser-webpack-plugin';
 import HtmlWebpackPlugin from 'html-webpack-plugin';
 import PreloadWebpackPlugin from 'preload-webpack-plugin';
 import MiniCssExtractPlugin, { loader as MiniCSSLoader } from 'mini-css-extract-plugin';
-import OptimizeCSSAssetsPlugin from 'optimize-css-assets-webpack-plugin';
 import ManifestPlugin from 'webpack-manifest-plugin';
 import WorkboxWebpackPlugin from 'workbox-webpack-plugin';
 import WebpackCdnPlugin from './webpack_cdn_plugin.js';
+import pathBrowserify from 'path-browserify';
 import logger from 'debug';
 import contains from '@stdlib/assert/contains';
 import isURI from '@stdlib/assert/is-uri';
@@ -356,10 +355,6 @@ function writeIndexFile({
 			include: 'allAssets',
 			fileBlacklist: [ /\.map/, /\.js/ ]
 		}),
-		new WebpackCdnPlugin({
-			prodUrl: 'https://cdnjs.cloudflare.com/ajax/libs/:alias/:version/:path',
-			modules: CDN_MODULES
-		}),
 		new MiniCssExtractPlugin({
 			filename: 'css/[name].css',
 			chunkFilename: 'css/[id].css'
@@ -404,6 +399,13 @@ function writeIndexFile({
 					'./node_modules/csv-stringify/lib/es5/index.js'
 				)
 			},
+			fallback: {
+				'path': resolve(
+					basePath,
+					'./node_modules/path-browserify'
+				),
+				'stream': false
+			},
 			mainFields: [ 'webpack', 'browser', 'web', 'browserify', [ 'jam', 'main' ], 'main' ]
 		},
 		module: {
@@ -415,7 +417,7 @@ function writeIndexFile({
 						/fonts\.js$/
 					],
 					loader: 'babel-loader',
-					query: {
+					options: {
 						plugins: [
 							resolve( basePath, './node_modules/@babel/plugin-transform-react-constant-elements' ),
 							resolve( basePath, './node_modules/@babel/plugin-transform-react-inline-elements' ),
@@ -457,7 +459,7 @@ function writeIndexFile({
 				{
 					test: /(sum-series|is-typed-array|node_modules\/ml-)[\s\S]+?\.js$/,
 					loader: 'babel-loader',
-					query: {
+					options: {
 						presets: [
 							[ resolve( basePath, './node_modules/@babel/preset-env' ), {
 								modules: 'commonjs',
@@ -476,13 +478,6 @@ function writeIndexFile({
 					]
 				},
 				{
-					test: /\.worker\.js$/,
-					exclude: /node_modules/, // do not touch the worker scripts of `pdf.js`
-					use: {
-						loader: 'worker-loader'
-					}
-				},
-				{
 					test: /\.svg$/i,
 					use: {
 						loader: 'svg-react-loader'
@@ -493,46 +488,6 @@ function writeIndexFile({
 		},
 		optimization: {
 			minimize: minify,
-			minimizer: [
-				new OptimizeCSSAssetsPlugin({}),
-				new TerserPlugin({
-					extractComments: 'all',
-					parallel: true,
-					terserOptions: {
-						warnings: true,
-						compress: {
-							arrows: false,
-							booleans: false,
-							collapse_vars: false,
-							comparisons: false,
-							computed_props: false,
-							hoist_funs: false,
-							hoist_props: false,
-							hoist_vars: false,
-							if_return: false,
-							inline: false,
-							join_vars: false,
-							keep_infinity: false,
-							loops: false,
-							negate_iife: false,
-							properties: false,
-							reduce_funcs: false,
-							reduce_vars: false,
-							sequences: false,
-							side_effects: false,
-							switches: false,
-							top_retain: false,
-							toplevel: false,
-							typeofs: false,
-							unused: false,
-							conditionals: true,
-							dead_code: true,
-							evaluate: true
-						},
-						mangle: true
-					}
-				})
-			],
 			splitChunks: {
 				cacheGroups: {
 					code: {
@@ -541,13 +496,6 @@ function writeIndexFile({
 					}
 				}
 			}
-		},
-		node: {
-			child_process: 'empty',
-			dns: 'mock',
-			fs: 'empty',
-			net: 'mock',
-			tls: 'mock'
 		},
 		externals: EXTERNALS,
 		plugins
@@ -627,13 +575,14 @@ function writeIndexFile({
 	config.output = {
 		path: appDir,
 		publicPath: './',
-		filename: minify ? './js/bundle.min.js' : './js/bundle.js'
+		filename: minify ? './js/[name].bundle.min.js' : './js/[name].bundle.js'
 	};
 	const compiler = webpack( config );
 	compiler.run( ( err, stats ) => {
 		unlinkSync( indexPath );
 		if ( err ) {
 			debug( 'Encountered an error during bundling: ' + err );
+			console.log( err );
 			removeSync( appDir );
 			return clbk( err );
 		}

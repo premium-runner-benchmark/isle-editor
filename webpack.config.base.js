@@ -33,7 +33,7 @@ const EXTERNALS = [
 	'murmurhash3js',
 	'node-pty',
 	'node-libs-browser',
-	'pdfjs-dist',
+	'pdfjs-dist/build/pdf.js',
 	'profanities',
 	'pressure',
 	'react-bootstrap',
@@ -85,11 +85,6 @@ export default {
 				join( __dirname, 'app' )
 			],
 			exclude: /fonts\.js$/
-		},
-		{
-			test: /\.worker\.js$/,
-			use: { loader: 'worker-loader' },
-			include: join( __dirname, 'app', 'components', 'response-visualizer' )
 		},
 		{
 			test: /\.txt$/,

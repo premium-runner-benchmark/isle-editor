@@ -13,7 +13,7 @@
 		"version": "0.12.0"
 	},
 	{
-		"name": "pdfjs-dist/webpack",
+		"name": "pdfjs-dist/build/pdf.min.js",
 		"alias": "pdf.js",
 		"var": "pdfjsLib",
 		"path": "pdf.min.js",
