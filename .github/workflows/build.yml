@@ -8,7 +8,8 @@ jobs:
     runs-on: ${{ matrix.runner_type }}
     strategy:
       matrix:
-        runner_type: [ds2v2,ds2v3,d2dsv4,d2asv4,m5large,n2s2,ds3v2,ds4v2,ds5v2,f4s,c2s4,c5xlarge,f8s,f16s,f32s,f64s,f2s,d4asv4]    
+        #runner_type: [ds2v2,ds2v3,d2dsv4,d2asv4,m5large,n2s2,ds3v2,ds4v2,ds5v2,f4s,c2s4,c5xlarge,f8s,f16s,f32s,f64s,f2s,d4asv4] 
+        runner_type: [ds2v2e,d2asv4e]
     env:
       runId: ${{ matrix.runner_type }}-${{ github.workflow }}
       artifactsDir: artifacts/${{ github.repository }}
